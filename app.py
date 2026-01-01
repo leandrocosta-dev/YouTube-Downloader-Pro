@@ -142,14 +142,28 @@ if st.session_state.view == 'search':
             if st.session_state.search_results:
                 st.write("### Resultados")
                 for i, entry in enumerate(st.session_state.search_results):
+                    # Tenta pegar a URL de várias formas possíveis
                     url = entry.get('webpage_url') or entry.get('url')
-                    if not url: continue
-
+                    if not url:
+                        # Se não tiver URL completa, constrói com o ID
+                        vid_id = entry.get('id')
+                        if vid_id: url = f"https://www.youtube.com/watch?v={vid_id}"
+                        else: continue
+                    
                     title = entry.get('title', 'Sem título')
                     uploader = entry.get('uploader', 'Desconhecido')
+                    
+                    # Tenta pegar thumbnails de forma mais robusta
                     thumbnails = entry.get('thumbnails', [])
-                    thumb = thumbnails[-1]['url'] if thumbnails else None
-
+                    thumb = None
+                    if thumbnails:
+                        thumb = thumbnails[-1].get('url')
+                    else:
+                        # Fallback para thumbnail padrão do YouTube se não vier na busca flat
+                        vid_id = entry.get('id')
+                        if vid_id:
+                            thumb = f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
+                    
                     c1, c2 = st.columns([1, 2])
                     with c1:
                         if thumb: st.image(thumb, use_container_width=True)
@@ -163,6 +177,7 @@ if st.session_state.view == 'search':
                             st.session_state.view = 'download'
                             st.rerun()
                     st.divider()
+
             else:
                 st.warning("Nenhum resultado encontrado. Tente colar o link direto do vídeo.")
 
@@ -210,3 +225,4 @@ elif st.session_state.view == 'download' and st.session_state.selected_video:
             else:
                 status.update(label="❌ Falha", state="error")
                 st.error(f"Erro: {info}")
+
