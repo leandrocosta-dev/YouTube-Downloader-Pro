@@ -390,7 +390,7 @@ if st.session_state.view == 'search':
     col_search, col_btn = st.columns([4, 1])
     
     with col_search:
-        query = st.text_input("Buscar", placeholder="Digite nome ou link...", label_visibility="collapsed")
+        query = st.text_input("Buscar", placeholder="Digite nome ou link...", label_visibility="collapsed", key="search_input")
     
     with col_btn:
         search_clicked = st.button("🔍 Buscar")
@@ -480,3 +480,4 @@ elif st.session_state.view == 'download' and st.session_state.selected_video:
                 status.update(label="❌ Falha", state="error")
                 st.error(f"Erro: {info}")
                 st.info("Dica: Se persistir o erro 403, o IP do servidor pode estar em blacklist temporária.")
+
