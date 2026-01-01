@@ -36,9 +36,22 @@ if 'search_results' not in st.session_state:
 if 'selected_video' not in st.session_state:
     st.session_state.selected_video = None
 
-# --- Configurações Anti-Bloqueio (403 Bypass) ---
-def get_ydl_base_opts():
-    """Retorna opções base para evitar detecção de bot"""
+# --- CONFIGURAÇÃO 1: APENAS PARA BUSCA (Modo Web) ---
+# Usa o cliente padrão (Web) para conseguir pegar Títulos e Thumbnails corretamente
+def get_search_opts():
+    return {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True, # Pega apenas dados básicos sem baixar nada
+        'ignoreerrors': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+    }
+
+# --- CONFIGURAÇÃO 2: APENAS PARA DOWNLOAD (Modo Android - Anti-Block) ---
+# Usa o cliente Android para contornar o erro 403 na hora de puxar o vídeo
+def get_download_opts():
     return {
         'quiet': True,
         'no_warnings': True,
@@ -46,23 +59,22 @@ def get_ydl_base_opts():
         'ignoreerrors': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web'],
+                'player_client': ['android', 'web'], # Força Android para evitar 403
                 'player_skip': ['js', 'configs', 'web']
             }
         },
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
         }
     }
 
 # --- Funções de Backend ---
 
 def search_youtube(query, max_results=5):
-    ydl_opts = get_ydl_base_opts()
+    # USA A CONFIG DE BUSCA (WEB)
+    ydl_opts = get_search_opts()
     ydl_opts.update({
         'default_search': f'ytsearch{max_results}',
-        'extract_flat': True,
     })
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -77,7 +89,10 @@ def search_youtube(query, max_results=5):
 
 def download_media(url, format_type):
     timestamp = int(time.time())
-    ydl_opts = get_ydl_base_opts()
+    
+    # USA A CONFIG DE DOWNLOAD (ANDROID)
+    ydl_opts = get_download_opts()
+    
     ydl_opts.update({
         'outtmpl': f'{DOWNLOAD_DIR}/%(title)s_%(id)s_{timestamp}.%(ext)s',
     })
@@ -99,6 +114,7 @@ def download_media(url, format_type):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Tenta extrair info completa agora com o cliente Android
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
@@ -131,7 +147,6 @@ if st.session_state.view == 'search':
     col_search, col_btn = st.columns([4, 1])
     
     with col_search:
-        # Adicionei key='search_input' para garantir unicidade
         query = st.text_input("Buscar", placeholder="Digite nome ou link...", label_visibility="collapsed", key="search_input")
     
     with col_btn:
@@ -188,6 +203,7 @@ elif st.session_state.view == 'download' and st.session_state.selected_video:
     st.divider()
     st.success(f"**Selecionado:** {video_data['title']}")
     
+    # Preview de vídeo (pode falhar com Android client na web, mas o download funciona)
     try:
         st.video(video_data['url'])
     except:
@@ -200,7 +216,7 @@ elif st.session_state.view == 'download' and st.session_state.selected_video:
     
     if st.button(f"Baixar {target_type.upper()}", type="primary"):
         with st.status("Processando...", expanded=True) as status:
-            st.write("Iniciando conexão segura...")
+            st.write("Iniciando conexão segura (Modo Android)...")
             file_path, info = download_media(video_data['url'], target_type)
             
             if file_path and os.path.exists(file_path):
